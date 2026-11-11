@@ -1,5 +1,7 @@
 # A hands-on OMOP CDM workshop in R
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24142775.svg)](https://doi.org/10.5281/zenodo.24142775)
+
 <p>
   <img src="docs/screenshot-tutorial.png" alt="The participant's tutorial: the welcome page, with the parts of the workshop in a list on the left" width="49%">
   <img src="docs/screenshot-facilitator.png" alt="The facilitator page: per part, buttons to open it and to show the feedback" width="49%">
@@ -196,5 +198,6 @@ data was shared with an AI tool during development; the dataset is synthetic (Sy
   covered by either licence. Replace them with your own when you reuse this work.
 - The dataset (synthea-covid19-10k) is not part of this repository; `./ws prepare-data` downloads it.
 
-To cite this work, see `CITATION.cff` (GitHub shows it as "Cite this repository"). `.zenodo.json` holds the
-metadata for a Zenodo release (DOI).
+To cite this work, use the DOI [10.5281/zenodo.24142775](https://doi.org/10.5281/zenodo.24142775), or see
+`CITATION.cff` (GitHub shows it as "Cite this repository"). `.zenodo.json` holds the metadata for the Zenodo
+release.
