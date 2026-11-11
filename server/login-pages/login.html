@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!-- The workshop's login page (replaces ShinyProxy's default). app/setup.R copies it to run/shinyproxy/templates/
+     and fills in the logo. Spring adds the security token to the form itself (th:action). -->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <title th:text="${title}"></title>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <style>
+        body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+               background: #F4F4F5; color: #1D1D1B; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+        .card { background: #fff; width: 100%; max-width: 400px; margin: 16px; padding: 32px 32px 28px; border-radius: 12px;
+                border-top: 6px solid #EE7F00; box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
+        .logo { width: 170px; display: block; margin-bottom: 22px; }
+        h1 { font-size: 24px; margin: 0 0 6px; }
+        p.lead { margin: 0 0 22px; color: #5F6155; font-size: 16px; }
+        label { display: block; font-weight: 600; font-size: 15px; margin: 14px 0 6px; }
+        input { width: 100%; box-sizing: border-box; font-size: 18px; padding: 10px 12px; border: 1px solid #C4C6B1;
+                border-radius: 6px; }
+        input:focus { outline: 3px solid #F5C58A; border-color: #EE7F00; }
+        button { width: 100%; margin-top: 24px; font-size: 18px; font-weight: 700; padding: 12px; border-radius: 6px;
+                 background: #B35C00; border: 1px solid #B35C00; color: #fff; cursor: pointer; }
+        button:hover { background: #8F4A00; }
+        .error { background: #F8EEF4; border-left: 5px solid #9E6697; padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; }
+        .help { margin-top: 18px; font-size: 14px; color: #5F6155; }
+        .payoff { width: 260px; margin: 18px 0 0; }
+    </style>
+</head>
+<body>
+<main class="card">
+    <img class="logo" src="{{LOGO}}" alt="Hanze"/>
+    <h1 th:text="${title}">Workshop</h1>
+    <p class="lead">Sign in with the username and password you have been given.</p>
+    <div class="error" th:if="${error}">That did not work. Check your username and password, and try again.</div>
+    <form method="POST" th:action="@{/login}">
+        <label for="username">Username</label>
+        <input id="username" name="username" autofocus="autofocus" required="required" autocomplete="username"
+               autocapitalize="none" spellcheck="false"/>
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required="required" autocomplete="current-password"/>
+        <button type="submit">Sign in</button>
+    </form>
+    <p class="help">Problems signing in? Ask your facilitator.</p>
+</main>
+<img class="payoff" src="{{PAYOFF}}" alt="share your talent. move the world."/>
+</body>
+</html>

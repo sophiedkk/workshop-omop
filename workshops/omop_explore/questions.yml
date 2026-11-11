@@ -1,0 +1,174 @@
+# Exploring the OMOP CDM — parts and questions.
+# Participant-safe: no right answers or feedback here (those are in key.yml, which only the api reads).
+# The tutorial shows these questions; the api checks answers against this file. Keep the order of the questions
+# the same as in the tutorial: the facilitator page lists them in this order.
+#
+# Question types: number, choice (one option), text.
+
+title: Exploring the OMOP CDM
+
+sections:
+  - id: start
+    title: "1. Getting started"
+  - id: people
+    title: "2. Counting people"
+  - id: hierarchy
+    title: "3. The concept hierarchy"
+  - id: records
+    title: "4. Health records"
+  - id: omopsketch
+    title: "5. Quick summaries"
+
+questions:
+  # 1. Getting started
+  - id: data_end_year
+    section: start
+    type: number
+    prompt: "In which year does the data end?"
+    unit: year
+  - id: cdm_version
+    section: start
+    type: choice
+    prompt: "Which version of the OMOP CDM does this dataset use?"
+    options: ["5.3", "5.4", "6.0"]
+  - id: vocab_group
+    section: start
+    type: choice
+    prompt: "In the picture: in which group is the `concept` table, the table that explains what all the codes mean?"
+    options: ["Standardized clinical data", "Standardized vocabularies"]
+  - id: concept_in_data
+    section: start
+    type: choice
+    prompt: "And is the `concept` table also in **our** dataset?"
+    options: ["Yes", "No"]
+
+  # 2. Counting people
+  - id: n_people
+    section: people
+    type: number
+    prompt: "How many people are in the `person` table?"
+    unit: people
+  - id: gender_8532
+    section: people
+    type: choice
+    prompt: "What does concept ID 8532 mean? Look it up on Athena."
+    options: [MALE, FEMALE, UNKNOWN]
+  - id: gender_8507
+    section: people
+    type: choice
+    prompt: "In 2.5 you looked up the other gender code with R. What is its `concept_name`?"
+    options: [MALE, FEMALE, UNKNOWN]
+  - id: n_female
+    section: people
+    type: number
+    prompt: "How many women are in the dataset?"
+    unit: people
+  - id: median_birth_year
+    section: people
+    type: number
+    prompt: "What is the median year of birth?"
+    unit: year
+  - id: birth_decade
+    section: people
+    type: choice
+    prompt: "Look at the plot: in which decade were the most people born?"
+    options: ["1930s", "1970s", "2010s"]
+  - id: n_asian
+    section: people
+    type: number
+    prompt: "How many people in the dataset are recorded as Asian?"
+    unit: people
+
+  # 3. The concept hierarchy
+  - id: af_concept_id
+    section: hierarchy
+    type: number
+    prompt: "What is the concept ID of the standard concept for the condition atrial fibrillation (the one with an S)?"
+  - id: af_parent
+    section: hierarchy
+    type: choice
+    prompt: "Which of these is directly **above** atrial fibrillation in the hierarchy?"
+    options: ["Atrial arrhythmia", "Paroxysmal atrial fibrillation", "Cough"]
+  - id: af_children
+    section: hierarchy
+    type: number
+    prompt: "How many concepts are directly **below** atrial fibrillation?"
+    unit: concepts
+  - id: hierarchy_table
+    section: hierarchy
+    type: choice
+    prompt: "Which table did you use to go up and down the hierarchy?"
+    options: [concept, concept_ancestor, person, condition_occurrence]
+
+  # 4. Health records
+  - id: n_conditions
+    section: records
+    type: number
+    prompt: "How many records are in the `condition_occurrence` table?"
+    unit: records
+  - id: af_records
+    section: records
+    type: number
+    prompt: "How many records of atrial fibrillation are there?"
+    unit: records
+  - id: top_condition
+    section: records
+    type: choice
+    prompt: "Which condition is recorded most often?"
+    options: ["COVID-19", "Coronary arteriosclerosis", "Fever", "Atrial fibrillation"]
+  - id: second_condition
+    section: records
+    type: choice
+    prompt: "Look at the plot: which diagnosis has the **second** longest bar?"
+    options: ["Fever", "COVID-19", "Cough"]
+  - id: drug_records
+    section: records
+    type: number
+    prompt: "How many records are in the `drug_exposure` table?"
+    unit: records
+  - id: top_drug
+    section: records
+    type: choice
+    prompt: "Which drug is recorded most often?"
+    options: ["Polio vaccine", "Influenza (flu) vaccine", "Tetanus and diphtheria vaccine"]
+  - id: covid_concept_id
+    section: records
+    type: number
+    prompt: "What is the concept ID of the standard concept called exactly **COVID-19**?"
+  - id: covid_peak
+    section: records
+    type: choice
+    prompt: "In which month were the most people diagnosed with COVID-19?"
+    options: ["March 2020", "December 2020", "August 2021"]
+  - id: top_procedure
+    section: records
+    type: choice
+    prompt: "Which procedure is recorded most often?"
+    options: ["Echocardiography", "Direct current cardioversion", "Oxygen administration by mask"]
+  - id: n_deaths
+    section: records
+    type: number
+    prompt: "How many people in the dataset have died?"
+    unit: people
+
+  # 5. Quick summaries
+  - id: obs_per_person
+    section: omopsketch
+    type: choice
+    prompt: "How many observation periods does each person have?"
+    options: ["Between one and three", "Exactly one", "It varies a lot"]
+  - id: trend_2023
+    section: omopsketch
+    type: choice
+    prompt: "In the plot, the number of people drops sharply in 2023. Why?"
+    options: ["Many people died in 2023", "The data ends in June 2023", "Fewer people were born in 2023"]
+  - id: sketch_women
+    section: omopsketch
+    type: choice
+    prompt: "Does OmopSketch count the same number of women as you did in part 2?"
+    options: ["Yes", "No, more", "No, fewer"]
+  - id: first_summary
+    section: omopsketch
+    type: choice
+    prompt: "You get a dataset you have never seen. Which summary would you run first?"
+    options: ["summariseOmopSnapshot()", "summariseTrend()", "summarisePerson()"]

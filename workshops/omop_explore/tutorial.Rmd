@@ -1,0 +1,752 @@
+---
+title: "Exploring the OMOP CDM"
+output:
+  learnr::tutorial:
+    progressive: false
+    allow_skip: true
+runtime: shiny_prerendered
+description: >
+  A hands-on introduction to the OMOP Common Data Model in R, with a synthetic dataset: count people, look up
+  codes and their hierarchy, explore health records, and summarise the data with OmopSketch.
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+suppressPackageStartupMessages({
+  library(dplyr); library(ggplot2); library(clock)
+  library(CDMConnector); library(PatientProfiles); library(OmopSketch)
+})
+source(file.path(Sys.getenv("WS_HOME", "/srv/workshop"), "app", "tutorial.R"))
+
+# One participant per container: run exercises in this R process. learnr's default on Linux forks a
+# child per exercise, which is not safe with DuckDB's threads.
+options(tutorial.exercise.evaluator = learnr:::inline_evaluator)
+# Tables in results: every column, in a box that scrolls (ws_print_table() in app/tutorial.R), not paged.
+tutorial_options(exercise.timelimit = 300, exercise.completion = FALSE)
+knitr::opts_chunk$set(exercise.df_print = ws_print_table)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)   # message = FALSE: no progress messages in results
+# Show results wide enough that the interesting columns are not hidden as "... more variables", and keep
+# OmopSketch's progress messages out of participants' results.
+options(width = 160, cli.default_handler = function(...) NULL)
+# Plots: large text, Hanze orange.
+theme_set(theme_minimal(base_size = 16))
+update_geom_defaults("col", aes(fill = "#EE7F00"))
+update_geom_defaults("bar", aes(fill = "#EE7F00"))
+
+# The dataset: one shared DuckDB file, attached read-only (see ws_cdm() in app/tutorial.R).
+# WS_RENDER_ONLY=1 while the image is built: there is no data then.
+if (!nzchar(Sys.getenv("WS_RENDER_ONLY"))) cdm <- ws_cdm()
+```
+
+```{r cdm-guard, include=FALSE}
+# Runs before every code box (each box has exercise.setup = "cdm-guard"): make sure `cdm` works, also if a
+# participant broke it in an earlier box.
+if (!nzchar(Sys.getenv("WS_RENDER_ONLY"))) cdm <- ws_cdm_ok(cdm)
+```
+
+```{r ws-assets}
+ws_assets()
+```
+
+```{r ws-server, context="server"}
+ws_server(session)
+```
+
+## Welcome
+
+Welcome to this hands-on workshop! Hospitals and researchers around the world store health data in the same
+way: the **OMOP Common Data Model**. Today you explore such a dataset yourself, with the programming language
+**R**. No experience with R is needed: all code is ready for you, and you only change small pieces.
+
+**Why R?**
+
+R is a programming language for working with data and statistics. In the OHDSI community, the people around the
+OMOP CDM, R is a *first-class citizen*: most of the community's open-source tools (such as the HADES packages for
+cohorts, characterisation and prediction) are R packages, and so are the packages you use today (CDMConnector,
+PatientProfiles and OmopSketch). What you learn here is how OMOP data is analysed in real studies.
+
+**What you will do**
+
+1. **Getting started**: a first look at the dataset.
+2. **Counting people**: how many people, how many women and men, what the codes in the data mean, and how to
+   turn codes into names.
+3. **The concept hierarchy**: how medical terms are organised, like a family tree.
+4. **Health records**: the most common diagnoses, medicines and procedures, and COVID-19 over time.
+5. **Quick summaries**: ready-made summaries of a whole table, in one line of code (with the OmopSketch package).
+
+**How this works**
+
+- Every grey code box works the same way: press **Run Code**, and the result appears below it. You may change
+  the code and run it again; **Start Over** puts the original code back.
+- Some code boxes have a **blank**, `____`, for you to fill in. If you get stuck, press **Hint**.
+- Questions are in boxes with an orange edge: fill in your answer and press **Save answer**. Later, your
+  facilitator shows the feedback.
+- The parts in the list on the left open one by one, when your facilitator is ready. You will see a message when
+  that happens; you do not need to reload the page.
+
+Your facilitator opens **1. Getting started** first. Until then, read this page and wait for the message.
+
+## 1. Getting started
+
+::: {.ws-section data-section="start"}
+
+### 1.1 What is in this dataset?
+
+In this workshop we look at a **synthetic** dataset: made up, but realistic, health records of about 10,000
+people. It is stored in the **OMOP Common Data Model (CDM)**, a standard way of organising health data in
+tables.
+
+The data is ready for you under the name `cdm`. Press **Run Code** for an overview of the dataset.
+
+```{r snapshot, exercise=TRUE, exercise.setup="cdm-guard"}
+summariseOmopSnapshot(cdm) |>
+  tableOmopSnapshot()
+```
+
+What the code does:
+
+- `summariseOmopSnapshot()` and `tableOmopSnapshot()` are **functions**: ready-made commands with a name followed
+  by brackets. You put what they should work on between the brackets. These two come from the **OmopSketch**
+  package: a collection of functions that others wrote for OMOP data, and that we have already loaded for you.
+- `summariseOmopSnapshot(cdm)` collects facts about the dataset `cdm`: where it comes from, how many people are
+  in it, the period it covers, and which versions it uses.
+- `|>` means **"and then"**: it passes the result on to the next function.
+- `tableOmopSnapshot()` shows those facts as a readable table.
+
+```{r q-data-end}
+ws_question("data_end_year")
+```
+
+```{r q-cdm-version}
+ws_question("cdm_version")
+```
+
+### 1.2 Which tables are there?
+
+The data is spread over many tables. This is the picture from the presentation: every box is a table, grouped
+by what it holds, such as clinical data (people and their health records) and vocabularies (the codes and what
+they mean).
+
+```{r cdm-diagram}
+# Served from this workshop's folder (not the internet). Source and licence: images/ATTRIBUTION.md.
+htmltools::tags$figure(style = "margin-bottom: 1.6em;",
+  htmltools::tags$img(src = "images/cdm-diagram-v6.png", style = "width: 100%; height: auto;",
+                      alt = "Overview of the tables of the OMOP Common Data Model"),
+  htmltools::tags$figcaption(style = "font-size: 14px; color: #5F6155; margin-top: 6px;", htmltools::HTML(paste0(
+    "Overview of all tables in the CDM version 6.0. Our dataset uses version 5.3, so a few tables differ. ",
+    "Source: Figure 4.1 of <em>The Book of OHDSI</em>, chapter 4 &ldquo;The Common Data Model&rdquo; ",
+    "(chapter lead: Clair Blacketer), OHDSI, 2021, <a href=\"https://book.ohdsi.org\" target=\"_blank\">book.ohdsi.org</a>. ",
+    "Licensed under <a href=\"https://creativecommons.org/publicdomain/zero/1.0/\" target=\"_blank\">CC0 1.0</a>."
+  )))
+)
+```
+
+The function `names()` lists the tables that are in our dataset:
+
+```{r table-names, exercise=TRUE, exercise.setup="cdm-guard"}
+names(cdm)
+```
+
+In this workshop we use only a few of them: `person` and `death` (people), `condition_occurrence`,
+`drug_exposure` and `procedure_occurrence` (health records), and `concept` and `concept_ancestor` (vocabularies).
+Find them in the picture.
+
+```{r q-vocab-group}
+ws_question("vocab_group")
+```
+
+Now look at the result of `names(cdm)` again:
+
+```{r q-concept-in-data}
+ws_question("concept_in_data")
+```
+
+:::
+
+## 2. Counting people
+
+::: {.ws-section data-section="people"}
+
+### 2.1 How many people are there?
+
+In 1.2, `names(cdm)` showed the tables in `cdm`. You pick one table by its name with a `$`: `cdm$person` is the
+table called `person`. The `person` table has **one row per person**, so if we count the rows, we count the
+people.
+
+```{r count-people, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$person |>
+  count()
+```
+
+- `cdm$person` takes the `person` table from the data.
+- `|>` means **"and then"**.
+- `count()` is a function that counts the rows.
+
+```{r q-n-people}
+ws_question("n_people")
+```
+
+### 2.2 What is in the person table?
+
+`head()` shows the first few rows of a table: a quick way to see which columns it has. The table is wider than
+the screen: scroll sideways in the table (with the mouse wheel and Shift, a trackpad, or the scroll bar) to see
+the other columns.
+
+```{r person-head, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$person |>
+  head()
+```
+
+Each row is a person. The columns describe that person, for example `gender_concept_id` (their gender) and
+`year_of_birth`. Remember these columns: you need them in the next steps.
+
+### 2.3 How many people per gender?
+
+Now we count per gender. `group_by()` makes one group for every different value in a column; `count()` then
+counts the rows in each group.
+
+```{r gender-ids, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$person |>
+  group_by(gender_concept_id) |>
+  count()
+```
+
+The result has numbers such as 8507 and 8532 instead of names. These are **concept IDs**: codes. In the OMOP CDM,
+almost everything is stored as a code like this.
+
+### 2.4 Look up a code yourself
+
+What does 8532 mean? Every code is described on **Athena**, the online dictionary of OMOP codes. Open
+<https://athena.ohdsi.org> in a new tab, choose **Search**, type `8532` in the search box and press Enter. Click
+the result to see its details.
+
+```{r q-gender-8532}
+ws_question("gender_8532")
+```
+
+Now you know which code is which, you can read the answer to this question from the result of 2.3:
+
+```{r q-n-female}
+ws_question("n_female")
+```
+
+### 2.5 Look up a code with R
+
+The same information as on Athena is in the `concept` table of our data. `filter()` keeps only the rows we ask
+for: here, the row where `concept_id` is 8532.
+
+```{r gender-concept, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$concept |>
+  filter(concept_id == 8532)
+```
+
+Now you: look up the **other** gender code from the result of 2.3. Fill it in, and press **Run Code**.
+
+```{r gender-other, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$concept |>
+  filter(concept_id == ____)
+```
+
+<div id="gender-other-hint">
+**Hint:** the result of 2.3 has two codes: 8532, and one other. That is the one to fill in.
+</div>
+
+```{r q-gender-8507}
+ws_question("gender_8507")
+```
+
+### 2.6 Fill in the blank: year of birth
+
+`summarise()` calculates one number from a whole column. Here we want the **median** year of birth. Fill in the
+name of the column that holds the year of birth (you saw it in 2.2), and press **Run Code**. (`na.rm = TRUE`
+means: ignore people whose year of birth is missing.)
+
+```{r median-birth, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$person |>
+  summarise(median_year = median(____, na.rm = TRUE))
+```
+
+<div id="median-birth-hint">
+**Hint:** look at the column names in the result of 2.2. One of them is about the year in which a person was
+born.
+</div>
+
+```{r q-median-birth-year}
+ws_question("median_birth_year")
+```
+
+### 2.7 A first plot: births per decade
+
+A picture often says more than a number. This code puts everyone in the decade they were born in (1930, 1940,
+...), counts the people per decade, and draws a bar for each decade.
+
+> Do not worry about the code in this step: you do not need to write a plot yourself today. Press **Run Code** and
+> look at the result; the list below the box is for those who are curious.
+
+```{r birth-plot, exercise=TRUE, exercise.setup="cdm-guard", fig.width=9, fig.height=4.5}
+cdm$person |>
+  mutate(decade = floor(year_of_birth / 10) * 10) |>
+  count(decade) |>
+  collect() |>
+  ggplot(aes(x = decade, y = n)) +
+  geom_col() +
+  labs(x = "Decade of birth", y = "People")
+```
+
+- `mutate()` adds a column: here `decade`, the year of birth rounded down to tens.
+- `collect()` brings the result into R, so we can plot it.
+- `ggplot()` starts a plot, `aes(x = decade, y = n)` says what goes on the axes, and `geom_col()` draws the bars.
+  In a plot, the steps are joined with `+` instead of `|>`.
+
+```{r q-birth-decade}
+ws_question("birth_decade")
+```
+
+### 2.8 From codes to names
+
+In 2.3 we counted per gender code, and in 2.4 and 2.5 we looked up the codes separately. We can also put the names
+next to the codes in R, by **joining** two tables. `left_join()` keeps every row of the table on the left (our
+counts) and adds the matching information from the table on the right (`concept`): for every row, it finds the
+row in `concept` where `concept_id` is the same as our `gender_concept_id`.
+
+```{r left-join-picture}
+htmltools::tags$figure(style = "margin-bottom: 1.6em;",
+  htmltools::tags$img(src = "images/left-join.svg", style = "width: 100%; max-width: 820px; height: auto;",
+                      alt = paste("A left join: the counts per gender code on the left, the concept table on the right,",
+                                  "and the result with the name of each code next to its count")),
+  htmltools::tags$figcaption(style = "font-size: 14px; color: #5F6155; margin-top: 6px;",
+    "A left join: every row on the left gets the matching columns from the right. Rows on the right without a match are left out.")
+)
+```
+
+A join adds *all* the columns of `concept`, and we only need the name. `select()` keeps only the columns you list.
+
+```{r gender-names, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$person |>
+  group_by(gender_concept_id) |>
+  count() |>
+  left_join(cdm$concept, by = c("gender_concept_id" = "concept_id")) |>
+  select(gender_concept_id, concept_name, n)
+```
+
+- `left_join(cdm$concept, by = c("gender_concept_id" = "concept_id"))`: join with `concept`, matching
+  `gender_concept_id` in our counts to `concept_id` in `concept`.
+- `select(gender_concept_id, concept_name, n)`: keep the code, its name and the count. Curious what the join
+  brings without this step? Remove the last line (and the `|>` before it) and run the code again.
+
+### 2.9 A shortcut: `addConceptName()`
+
+Looking up names is so common that the **PatientProfiles** package has a shortcut for it. `addConceptName()` adds
+the name for a code column; here we call the new column `gender`, and then count per gender. The result is the
+same as in 2.8, with much less code.
+
+```{r add-concept-name, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$person |>
+  addConceptName(column = "gender_concept_id", nameStyle = "gender") |>
+  group_by(gender) |>
+  count()
+```
+
+### 2.10 Your turn: race
+
+The `person` table also has a column with a code for each person's race. Use the shortcut from 2.9: fill in
+the name of that column (look at the columns in 2.2), and count per race.
+
+```{r race-names, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$person |>
+  addConceptName(column = "____", nameStyle = "race") |>
+  group_by(race) |>
+  count()
+```
+
+<div id="race-names-hint">
+**Hint:** in 2.9 the column was `gender_concept_id`. The column for race is named the same way.
+</div>
+
+```{r q-n-asian}
+ws_question("n_asian")
+```
+
+:::
+
+## 3. The concept hierarchy
+
+::: {.ws-section data-section="hierarchy"}
+
+Concepts are organised in a **hierarchy**, like a family tree: *atrial fibrillation* (a heart rhythm disorder)
+is a kind of *atrial arrhythmia*, and *paroxysmal atrial fibrillation* is a kind of atrial fibrillation. In this
+part you walk up and down that tree.
+
+```{r hierarchy-picture}
+htmltools::tags$figure(style = "margin-bottom: 1.6em;",
+  htmltools::tags$img(src = "images/hierarchy-af.svg", style = "width: 100%; max-width: 820px; height: auto;",
+                      alt = paste("Part of the concept hierarchy around atrial fibrillation: above it Atrial arrhythmia",
+                                  "and Fibrillation, higher up Supraventricular arrhythmia and Cardiac arrhythmia, below it",
+                                  "kinds of atrial fibrillation such as Paroxysmal and Persistent atrial fibrillation")),
+  htmltools::tags$figcaption(style = "font-size: 14px; color: #5F6155; margin-top: 6px;", htmltools::HTML(paste0(
+    "Part of the hierarchy around atrial fibrillation (not every concept is shown). Simplified from a figure in the ",
+    "<a href=\"https://academy.ehden.eu/\" target=\"_blank\">EHDEN Academy</a>."
+  )))
+)
+```
+
+### 3.1 Find atrial fibrillation
+
+First on Athena: search for `atrial fibrillation`. There are many results; we want the **condition** (the
+diagnosis). On the left, choose **Domain: Condition** and **Standard concept: Standard**, and open the result
+called *Atrial fibrillation*. The tab **Hierarchy** shows what is above and below it.
+
+Now with R: find the concepts with exactly this name, in the domain *Condition*.
+
+```{r af-find, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$concept |>
+  filter(concept_name == "Atrial fibrillation", domain_id == "Condition")
+```
+
+There are two, from different **vocabularies** (coding systems: SNOMED and ICD9CM). The column
+`standard_concept` shows an **S** for the one that OMOP uses as the standard (scroll sideways in the table to see
+that column).
+
+```{r q-af-concept-id}
+ws_question("af_concept_id")
+```
+
+### 3.2 One step up
+
+The `concept_ancestor` table links every concept to everything **above** it (its ancestors) and **below** it
+(its descendants). `min_levels_of_separation == 1` means: only one step away. This code finds what is directly
+above atrial fibrillation: rows where atrial fibrillation is the **descendant**. It then adds the names of the
+**ancestors**. Fill in the concept ID of atrial fibrillation that you found in 3.1, and press **Run Code**.
+
+```{r af-up, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$concept_ancestor |>
+  filter(descendant_concept_id == ____, min_levels_of_separation == 1) |>
+  addConceptName(column = "ancestor_concept_id", nameStyle = "name")
+```
+
+<div id="af-up-hint">
+**Hint:** the concept ID from 3.1: the row for atrial fibrillation with an **S** in `standard_concept`.
+</div>
+
+```{r q-af-parent}
+ws_question("af_parent")
+```
+
+### 3.3 Fill in the blank: one step down
+
+Now the other way: what is directly **below** atrial fibrillation? This time atrial fibrillation must be the
+**ancestor**. Fill in the column name in the first step.
+
+```{r af-down, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$concept_ancestor |>
+  filter(____ == 313217, min_levels_of_separation == 1) |>
+  addConceptName(column = "descendant_concept_id", nameStyle = "name")
+```
+
+<div id="af-down-hint">
+**Hint:** in 3.2 the first step used `descendant_concept_id`. Now atrial fibrillation is the ancestor: use the
+other column, `ancestor_concept_id`.
+</div>
+
+```{r q-af-children}
+ws_question("af_children")
+```
+
+**Bonus:** the result has more columns than we need. Add `select()` (from 2.8) to keep only the column with the
+names.
+
+```{r af-names, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$concept_ancestor |>
+  filter(ancestor_concept_id == 313217, min_levels_of_separation == 1) |>
+  addConceptName(column = "descendant_concept_id", nameStyle = "name") |>
+  select(____)
+```
+
+<div id="af-names-hint">
+**Hint:** `addConceptName()` put the names in a new column, and the code above gave it its name with
+`nameStyle = "name"`.
+</div>
+
+```{r q-hierarchy}
+ws_question("hierarchy_table")
+```
+
+:::
+
+## 4. Health records
+
+::: {.ws-section data-section="records"}
+
+So far we looked at people and codes. Now the health records themselves: every diagnosis is a row in
+`condition_occurrence`, every medicine or vaccination a row in `drug_exposure`, and every procedure (such as a
+scan or an operation) a row in `procedure_occurrence`.
+
+### 4.1 Fill in the blank: how many diagnoses?
+
+Count the rows of the table with diagnoses. Fill in the function that counts rows: you used it in 2.1.
+
+```{r count-conditions, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$condition_occurrence |>
+  ____()
+```
+
+<div id="count-conditions-hint">
+**Hint:** in 2.1, the function after `cdm$person |>` counted the people. Its name is a verb that means: tell how
+many.
+</div>
+
+```{r q-n-conditions}
+ws_question("n_conditions")
+```
+
+### 4.2 Fill in the blank: how often atrial fibrillation?
+
+Each record has a `condition_concept_id`: the code of the diagnosis. Fill in the concept ID of atrial
+fibrillation, which you found in part 3.
+
+```{r count-af, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$condition_occurrence |>
+  filter(condition_concept_id == ____) |>
+  count()
+```
+
+<div id="count-af-hint">
+**Hint:** it is the number in 3.2 and 3.3: the standard concept for atrial fibrillation.
+</div>
+
+```{r q-af-records}
+ws_question("af_records")
+```
+
+### 4.3 The most common diagnoses
+
+This code adds the name of each diagnosis, counts the records per name, and puts the largest first.
+`collect()` brings the result into R, and `arrange(desc(n))` sorts it from high to low.
+
+```{r top-conditions, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$condition_occurrence |>
+  addConceptName(column = "condition_concept_id", nameStyle = "condition") |>
+  count(condition) |>
+  collect() |>
+  arrange(desc(n))
+```
+
+```{r q-top-condition}
+ws_question("top_condition")
+```
+
+### 4.4 A plot: the top 10 diagnoses
+
+The same counts, as a bar chart. `slice_max(n, n = 10)` keeps the 10 largest; `geom_col()` draws a bar for each.
+
+```{r top-conditions-plot, exercise=TRUE, exercise.setup="cdm-guard", fig.width=9, fig.height=5}
+cdm$condition_occurrence |>
+  addConceptName(column = "condition_concept_id", nameStyle = "condition") |>
+  count(condition) |>
+  collect() |>
+  slice_max(n, n = 10) |>
+  ggplot(aes(x = n, y = reorder(condition, n))) +
+  geom_col() +
+  labs(x = "Number of records", y = NULL)
+```
+
+```{r q-second-condition}
+ws_question("second_condition")
+```
+
+### 4.5 Find the drug table and count it
+
+Which table holds the drugs? `grep()` searches a list: here the table names from `names(cdm)`, for names with
+"drug" in them.
+
+```{r find-drug-table, exercise=TRUE, exercise.setup="cdm-guard"}
+grep("drug", names(cdm), value = TRUE)
+```
+
+There are three. `drug_exposure` holds the records themselves (`drug_era` and `drug_strength` are summaries and
+reference data). Fill it in, and count its rows:
+
+```{r count-drugs, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$____ |>
+  count()
+```
+
+<div id="count-drugs-hint">
+**Hint:** the table with the records is the first of the three: `drug_...`.
+</div>
+
+```{r q-drug-records}
+ws_question("drug_records")
+```
+
+### 4.6 Fill in the blank: the most common drugs
+
+The same as 4.3, but for drugs. First look at the columns of `drug_exposure`: `colnames()` lists the names of
+the columns of a table.
+
+```{r drug-columns, exercise=TRUE, exercise.setup="cdm-guard"}
+colnames(cdm$drug_exposure)
+```
+
+Fill in the column with the drug code:
+
+```{r top-drugs, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$drug_exposure |>
+  addConceptName(column = "____", nameStyle = "drug") |>
+  count(drug) |>
+  collect() |>
+  arrange(desc(n))
+```
+
+<div id="top-drugs-hint">
+**Hint:** in 4.3 the column was `condition_concept_id`, because the table was `condition_occurrence`. For drugs it
+is named the same way: the third column in the list above, `drug_...`.
+</div>
+
+```{r q-top-drug}
+ws_question("top_drug")
+```
+
+### 4.7 Find COVID-19
+
+This dataset was made to study COVID-19. Find its concept ID, as you did for atrial fibrillation in 3.1. This
+time we search for every condition with "COVID" in its name: `grepl()` checks whether a name contains a word.
+`standard_concept == "S"` keeps only the standard concepts, and `select()` keeps only the ID and the name.
+
+```{r covid-find, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$concept |>
+  filter(grepl("COVID", concept_name), domain_id == "Condition", standard_concept == "S") |>
+  select(concept_id, concept_name)
+```
+
+Several standard concepts mention COVID-19. Look for the one called exactly **COVID-19**.
+
+```{r q-covid-concept-id}
+ws_question("covid_concept_id")
+```
+
+### 4.8 A plot: COVID-19 over time
+
+How many people were diagnosed with COVID-19, per month? `mutate()` adds a column: here `month`, the month of
+each diagnosis. Then we count per month and draw a bar per month.
+
+```{r covid-plot, exercise=TRUE, exercise.setup="cdm-guard", fig.width=9, fig.height=4.5}
+cdm$condition_occurrence |>
+  filter(condition_concept_id == 37311061) |>
+  mutate(month = floor_date(condition_start_date, "month")) |>
+  count(month) |>
+  collect() |>
+  ggplot(aes(x = month, y = n)) +
+  geom_col() +
+  labs(x = NULL, y = "Diagnoses")
+```
+
+```{r q-covid-peak}
+ws_question("covid_peak")
+```
+
+### 4.9 Fill in the blank: procedures
+
+Now the most common procedures, from the table `procedure_occurrence`. First its columns:
+
+```{r procedure-columns, exercise=TRUE, exercise.setup="cdm-guard"}
+colnames(cdm$procedure_occurrence)
+```
+
+Fill in the column with the procedure code:
+
+```{r top-procedures, exercise=TRUE, exercise.setup="cdm-guard"}
+cdm$procedure_occurrence |>
+  addConceptName(column = "____", nameStyle = "procedure") |>
+  count(procedure) |>
+  collect() |>
+  arrange(desc(n))
+```
+
+<div id="top-procedures-hint">
+**Hint:** same pattern as 4.6: the third column in the list above, `procedure_` followed by `concept_id`.
+</div>
+
+```{r q-top-procedure}
+ws_question("top_procedure")
+```
+
+### 4.10 Fill in the blank: deaths
+
+The `death` table has one row for every person who died. How many are there? By now you can write this yourself:
+replace the blank with code that counts the rows of the `death` table.
+
+```{r count-deaths, exercise=TRUE, exercise.setup="cdm-guard"}
+____
+```
+
+<div id="count-deaths-hint">
+**Hint:** the same as in 2.1, where you counted the rows of the `person` table: `cdm$person |> count()`. Now the
+table is called `death`.
+</div>
+
+```{r q-n-deaths}
+ws_question("n_deaths")
+```
+
+:::
+
+## 5. Quick summaries
+
+::: {.ws-section data-section="omopsketch"}
+
+In parts 2 to 4 you wrote the queries yourself. **OmopSketch** (<https://OHDSI.github.io/OmopSketch/>), the
+package you used in 1.1, has ready-made summaries: one line of code for a table or a chart. This is how you
+start with any new dataset.
+
+### 5.1 Observation periods
+
+The `observation_period` table says, per person, during which time their health records were collected.
+
+```{r sketch-obs, exercise=TRUE, exercise.setup="cdm-guard"}
+summariseObservationPeriod(cdm$observation_period) |>
+  tableObservationPeriod()
+```
+
+```{r q-obs-per-person}
+ws_question("obs_per_person")
+```
+
+### 5.2 People in observation per year
+
+How many people were observed in each year:
+
+```{r sketch-trend, exercise=TRUE, exercise.setup="cdm-guard", fig.width=8, fig.height=4}
+summariseTrend(cdm, episode = "observation_period", output = "person", interval = "years",
+               dateRange = as.Date(c("2000-01-01", "2023-12-31"))) |>
+  plotTrend()
+```
+
+```{r q-trend-2023}
+ws_question("trend_2023")
+```
+
+### 5.3 The people, summarised
+
+In part 2 you counted the people, the women and the men step by step. OmopSketch summarises the whole `person`
+table in one line: sex, race, year of birth and more.
+
+```{r sketch-person, exercise=TRUE, exercise.setup="cdm-guard"}
+summarisePerson(cdm) |>
+  tablePerson()
+```
+
+```{r q-sketch-women}
+ws_question("sketch_women")
+```
+
+### To finish
+
+```{r q-first-summary}
+ws_question("first_summary")
+```
+
+*Further reading:* the OMOP CDM documentation, <https://ohdsi.github.io/CommonDataModel/>, and the book
+*Tidy R programming with OMOP*, <https://ohdsi.github.io/Tidy-R-programming-with-OMOP/>.
+
+:::

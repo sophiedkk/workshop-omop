@@ -1,0 +1,7 @@
+# Everything a run creates: state, passwords, tokens, ShinyProxy config with passwords, data, backups.
+run/
+# Rendered tutorials (built into the image).
+workshops/*/*.html
+workshops/*/*_files/
+# Local settings with participant names (copy config.example.yml).
+config.yml

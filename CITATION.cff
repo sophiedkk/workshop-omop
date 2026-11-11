@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use this workshop or its software, please cite it as below."
+type: software
+title: "A hands-on OMOP CDM workshop in R"
+abstract: >-
+  A hands-on workshop in which participants explore a synthetic OMOP Common Data Model dataset
+  (synthea-covid19-10k) in R, with CDMConnector, PatientProfiles and OmopSketch, through a learnr tutorial in
+  their browser. A facilitator opens the parts of the workshop and releases feedback live. Everything runs in
+  containers: one tutorial per participant (ShinyProxy), a plumber api with the state and the answer key, a Shiny
+  facilitator app and Caddy for HTTPS.
+authors:
+  - given-names: Steven
+    family-names: Warmelink
+    affiliation: Hanze University of Applied Sciences
+    orcid: "https://orcid.org/0000-0002-5175-4131"
+  - given-names: Sophie
+    family-names: de Klerk
+    affiliation: Hanze University of Applied Sciences
+    orcid: "https://orcid.org/0000-0003-2745-1963"
+repository-code: "https://github.com/sophiedkk/workshop-omop"
+license:
+  - MIT            # the code
+  - CC-BY-SA-4.0   # the workshop content (workshops/)
+keywords:
+  - OMOP CDM
+  - OHDSI
+  - R
+  - learnr
+  - Shiny
+  - teaching
+  - workshop

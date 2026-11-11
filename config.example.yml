@@ -1,0 +1,43 @@
+# Workshop configuration. Copy this file to config.yml and edit it:
+#
+#   cp config.example.yml config.yml
+#
+# config.yml is not in git (it holds people's names). ./ws reads it for every command.
+# After changing it: ./ws setup --config (addresses, ports, limits) and ./ws up.
+# The participant list is read when participants are created: ./ws setup (first time) or ./ws setup --fresh.
+# Someone joins later: add them here and run ./ws setup --add (everyone else keeps their account).
+
+# The workshop to run: a folder in workshops/.
+workshop: omop_explore
+
+# ---------------------------------------------------------------- participants
+# One per line. The username is made from the name: lower case, no spaces or accents
+# ("Ana de Vries" -> ana-de-vries). To choose a username yourself, write   - Ana de Vries: ana
+# Usernames may contain lower case letters, digits, - and _. "admin" is reserved for the facilitator.
+participants:
+  - Ana de Vries
+  - Ben Jansen
+  - Chris Bakker: chris
+
+# ---------------------------------------------------------------- how participants reach the workshop
+# address:  (empty)  only on this computer, at http://127.0.0.1:8080 (for testing)
+#           auto     the server's public IP address, looked up automatically
+#           1.2.3.4  this IP address
+# With an address, participants open https://<address with dashes>.sslip.io, for example
+# https://20-1-2-3.sslip.io (a certificate needs a name, not a bare IP). Typing http://<address> redirects there.
+address:
+
+# The ports opened in the firewall.
+https_port: 443
+http_port: 80
+
+# tls:  auto   Caddy gets a free certificate from Let's Encrypt and renews it. Needs http_port 80 or https_port 443
+#              to be reachable from the internet (that is how Let's Encrypt checks the address).
+#       files  use the certificate already on the server, in /etc/letsencrypt/live/<name>/ (fullchain.pem, privkey.pem).
+#       off    no HTTPS: plain http on http_port. Passwords travel unencrypted; only for a closed network.
+tls: auto
+
+# ---------------------------------------------------------------- per participant
+memory: 2g          # the most memory one participant's R session may use
+cpus: 2             # the most CPU cores one participant may use
+idle_minutes: 30    # stop a participant's session this long after their browser tab closed

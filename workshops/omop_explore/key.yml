@@ -1,0 +1,176 @@
+# Exploring the OMOP CDM — the answer KEY. Facilitator only.
+# Never in the image or a participant's container; mounted into the api only.
+#
+# Per question:
+#   number:  expected, tolerance, ok (optional text if right), bad (text if wrong)
+#   choice:  options: {option: [right|wrong|info, text]}
+#   explain: shown with the feedback, also to participants who did not answer (optional)
+# Text questions have no key: the facilitator discusses them with the room.
+# Values were checked against synthea-covid19-10k (the shared DuckDB).
+
+data_end_year:
+  expected: 2023
+  tolerance: 0
+  bad: "Not quite. Look at the end date of the observation period in the overview."
+  explain: "The observation periods run from 1923 to 14 June 2023."
+cdm_version:
+  options:
+    "5.3": [right, "Yes: the overview shows CDM version 5.3."]
+    "5.4": [wrong, "Look at the CDM version in the overview of 1.1."]
+    "6.0": [wrong, "Look at the CDM version in the overview of 1.1."]
+  explain: "This dataset uses OMOP CDM version 5.3."
+vocab_group:
+  options:
+    "Standardized clinical data": [wrong, "Clinical data are the people and their health records, such as person and condition_occurrence. Look on the right of the picture."]
+    "Standardized vocabularies": [right, "Yes: the vocabularies explain the codes. You will use the concept table in part 2."]
+  explain: "The concept table is one of the vocabularies (on the right of the picture): it explains what every code means."
+concept_in_data:
+  options:
+    "Yes": [right, "Yes: concept is in the list of names(cdm). Every OMOP dataset comes with its vocabularies."]
+    "No": [wrong, "Look again at the result of names(cdm): concept is in the list."]
+  explain: "Yes: our dataset has the concept table too. Every OMOP dataset comes with the vocabularies, so the codes can always be looked up."
+
+n_people:
+  expected: 10754
+  tolerance: 0
+  bad: "Not quite. Run the code and read the number in the result."
+  explain: "The person table has 10,754 rows: one per person."
+gender_8532:
+  options:
+    MALE: [wrong, "Male is concept ID 8507."]
+    FEMALE: [right, "Yes: 8532 is FEMALE (and 8507 is MALE)."]
+    UNKNOWN: [wrong, "Look the code up on Athena: it is one of the two genders."]
+  explain: "8532 is FEMALE, 8507 is MALE."
+gender_8507:
+  options:
+    MALE: [right, "Yes: 8507 is MALE."]
+    FEMALE: [wrong, "8532 is FEMALE; the other code, 8507, is MALE. Fill in 8507 and run the code."]
+    UNKNOWN: [wrong, "Fill in 8507 (the other code in 2.3), run the code and read concept_name."]
+  explain: "8507 is MALE: the concept table holds the same information as Athena."
+n_female:
+  expected: 5165
+  tolerance: 0
+  bad: "Not quite. Find the row with gender_concept_id 8532 in the result of 2.3."
+  explain: "5,165 people have gender_concept_id 8532 (FEMALE)."
+median_birth_year:
+  expected: 1970
+  tolerance: 0
+  bad: "Not quite. Fill in the column with the year of birth (you saw it in 2.2) and run the code."
+  explain: "The median year of birth is 1970."
+birth_decade:
+  options:
+    "1930s": [right, "Yes: 1,267 people were born in the 1930s, the highest bar."]
+    "1970s": [wrong, "The 1970s bar is lower (960). Look for the highest bar."]
+    "2010s": [wrong, "The 2010s bar (1,102) is high, but not the highest."]
+  explain: "Most people were born in the 1930s (1,267)."
+n_asian:
+  expected: 732
+  tolerance: 0
+  bad: "Not quite. Fill in race_concept_id, run the code, and read the row Asian."
+  explain: "732 people are recorded as Asian."
+
+af_concept_id:
+  expected: 313217
+  tolerance: 0
+  bad: "Not quite. Look for the row where standard_concept is S."
+  explain: "The standard concept for atrial fibrillation is 313217 (SNOMED)."
+af_parent:
+  options:
+    "Atrial arrhythmia": [right, "Yes: atrial fibrillation is a kind of atrial arrhythmia."]
+    "Paroxysmal atrial fibrillation": [wrong, "That one is below atrial fibrillation: it is a kind of atrial fibrillation."]
+    "Cough": [wrong, "Cough is not related to atrial fibrillation."]
+  explain: "Directly above atrial fibrillation are Atrial arrhythmia and Fibrillation."
+af_children:
+  expected: 12
+  tolerance: 0
+  bad: "Not quite. Count the rows in the result of 3.3 (the number is above the table)."
+  explain: "12 concepts are directly below atrial fibrillation, such as Paroxysmal and Persistent atrial fibrillation."
+hierarchy_table:
+  options:
+    concept: [wrong, "The concept table describes each concept, but not how they relate."]
+    concept_ancestor: [right, "Yes: it links every concept to everything above and below it."]
+    person: [wrong, "The person table holds people, not concepts."]
+    condition_occurrence: [wrong, "That table holds health records, not concepts."]
+  explain: "The concept_ancestor table holds the hierarchy."
+
+n_conditions:
+  expected: 9967
+  tolerance: 0
+  bad: "Not quite. Run the code and read the number in the result."
+  explain: "There are 9,967 condition records."
+af_records:
+  expected: 783
+  tolerance: 0
+  bad: "Not quite. Fill in the concept ID of atrial fibrillation (313217)."
+  explain: "There are 783 records of atrial fibrillation (concept ID 313217)."
+top_condition:
+  options:
+    "COVID-19": [wrong, "COVID-19 is second, with 964 records."]
+    "Coronary arteriosclerosis": [right, "Yes: 1,292 records."]
+    "Fever": [wrong, "Fever has 897 records."]
+    "Atrial fibrillation": [wrong, "Atrial fibrillation has 783 records."]
+  explain: "Coronary arteriosclerosis is recorded most often (1,292 records)."
+second_condition:
+  options:
+    "Fever": [wrong, "Fever is third (897), together with cerebrovascular accident."]
+    "COVID-19": [right, "Yes: 964 records, after coronary arteriosclerosis."]
+    "Cough": [wrong, "Cough has 677 records, further down."]
+  explain: "COVID-19 is second (964 records)."
+drug_records:
+  expected: 337509
+  tolerance: 0
+  bad: "Not quite. Fill in drug_exposure (found in 4.5) and run the code."
+  explain: "There are 337,509 drug records."
+top_drug:
+  options:
+    "Polio vaccine": [wrong, "Polio vaccine has 9,991 records."]
+    "Influenza (flu) vaccine": [right, "Yes: by far, with 191,779 records."]
+    "Tetanus and diphtheria vaccine": [wrong, "That one has 19,481 records."]
+  explain: "The seasonal flu vaccine is recorded most often (191,779 records)."
+covid_concept_id:
+  expected: 37311061
+  tolerance: 0
+  bad: "Not quite. Several concepts are called COVID-19: take the one with an S in standard_concept."
+  explain: "The standard condition concept for COVID-19 is 37311061."
+covid_peak:
+  options:
+    "March 2020": [wrong, "That is when the first diagnoses appear; the peak came later."]
+    "December 2020": [right, "Yes: 168 diagnoses, the highest bar in the plot."]
+    "August 2021": [wrong, "There is a smaller peak then, but the highest bar is earlier."]
+  explain: "Most diagnoses were in December 2020 (168)."
+top_procedure:
+  options:
+    "Echocardiography": [wrong, "Echocardiography has 1,282 records."]
+    "Direct current cardioversion": [right, "Yes: 11,052 records."]
+    "Oxygen administration by mask": [wrong, "That one has 1,951 records."]
+  explain: "Direct current cardioversion is recorded most often (11,052 records)."
+n_deaths:
+  expected: 754
+  tolerance: 0
+  bad: "Not quite. Fill in the table death and run the code."
+  explain: "754 people in the dataset have died: the death table has one row per person who died."
+
+obs_per_person:
+  options:
+    "Between one and three": [wrong, "Look at 'Records per person' in the table."]
+    "Exactly one": [right, "Yes: 10,754 observation periods for 10,754 people."]
+    "It varies a lot": [wrong, "Every person has exactly one observation period."]
+  explain: "Everyone has exactly one observation period."
+trend_2023:
+  options:
+    "Many people died in 2023": [wrong, "Look at the end date of the data in 1.1."]
+    "The data ends in June 2023": [right, "Yes: 2023 has only half a year of data."]
+    "Fewer people were born in 2023": [wrong, "Births do not explain it: look at the end date of the data in 1.1."]
+  explain: "The data ends on 14 June 2023, so 2023 counts only half a year."
+sketch_women:
+  options:
+    "Yes": [right, "Yes: 5,165 women, the same as in 2.4."]
+    "No, more": [wrong, "Look at Sex / Female in the table: 5,165, the same as in 2.4."]
+    "No, fewer": [wrong, "Look at Sex / Female in the table: 5,165, the same as in 2.4."]
+  explain: "Both count 5,165 women: OmopSketch gives the same answer in one line."
+first_summary:
+  options:
+    "summariseOmopSnapshot()": [right, "Yes: it shows what the dataset is, how big, which period and which versions."]
+    "summariseTrend()": [wrong, "Useful, but first you want the overall picture: summariseOmopSnapshot()."]
+    "summarisePerson()": [wrong, "Useful, but first you want the overall picture: summariseOmopSnapshot()."]
+  explain: "summariseOmopSnapshot() gives the overview of a new dataset: source, size, period and versions."

@@ -1,0 +1,15 @@
+# Never in the image: the answer key, secrets, state, and generated files.
+.git/
+tests/
+**/key.yml
+run/
+handouts/
+state/
+backups/
+secrets/
+shinyproxy/application.yml
+**/*.html
+**/*_files/
+**/*_cache/
+# ...except the login page templates.
+!server/login-pages/*.html

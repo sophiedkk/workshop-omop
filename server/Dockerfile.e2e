@@ -1,0 +1,14 @@
+# Test image: the workshop image plus headless Chrome, for end-to-end tests that drive real browsers
+# through ShinyProxy (tests/e2e.R). Not needed to run a workshop.
+FROM localhost/rworkshop-base:latest
+USER root
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends wget ca-certificates \
+ && wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends /tmp/chrome.deb \
+ && rm -rf /tmp/chrome.deb /var/lib/apt/lists/* \
+ && install2.r --error --skipinstalled chromote \
+ && rm -rf /tmp/downloaded_packages
+ENV CHROMOTE_CHROME=/usr/bin/google-chrome
+RUN useradd --create-home --uid 1001 workshop
+USER workshop

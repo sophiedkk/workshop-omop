@@ -1,0 +1,28 @@
+{
+  "title": "A hands-on OMOP CDM workshop in R",
+  "description": "<p>A hands-on workshop in which participants explore a synthetic OMOP Common Data Model dataset (synthea-covid19-10k) in R, with CDMConnector, PatientProfiles and OmopSketch, through a learnr tutorial in their browser. A facilitator opens the parts of the workshop and releases feedback live.</p><p>Everything runs in containers: one tutorial per participant (ShinyProxy), a plumber api with the state and the answer key, a Shiny facilitator app and Caddy for HTTPS.</p><p>Licences: the code is MIT; the workshop content (workshops/) is CC BY-SA 4.0. The Hanze logos (branding/) are trademarks and not licensed.</p>",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Warmelink, Steven",
+      "affiliation": "Hanze University of Applied Sciences",
+      "orcid": "0000-0002-5175-4131"
+    },
+    {
+      "name": "de Klerk, Sophie",
+      "affiliation": "Hanze University of Applied Sciences",
+      "orcid": "0000-0003-2745-1963"
+    }
+  ],
+  "license": "mit",
+  "access_right": "open",
+  "keywords": [
+    "OMOP CDM",
+    "OHDSI",
+    "R",
+    "learnr",
+    "Shiny",
+    "teaching",
+    "workshop"
+  ]
+}
